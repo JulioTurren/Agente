@@ -1,0 +1,14 @@
+com\gimnasio\model\Training$TrainingCategory.class
+com\gimnasio\repository\TrainingRepository.class
+com\gimnasio\config\DataInitializer.class
+com\gimnasio\GimnasioApplication.class
+com\gimnasio\repository\UserRepository.class
+com\gimnasio\model\Exercise.class
+com\gimnasio\config\SecurityConfig.class
+com\gimnasio\service\TrainingService.class
+com\gimnasio\controller\TrainingController.class
+com\gimnasio\controller\AuthController.class
+com\gimnasio\model\User.class
+com\gimnasio\model\Training.class
+com\gimnasio\service\UserService.class
+com\gimnasio\repository\ExerciseRepository.class

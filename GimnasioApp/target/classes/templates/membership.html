@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GymApp - Membresia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <nav th:replace="~{fragments :: navbar}"></nav>
+
+    <div class="main-content">
+        <div class="container py-4">
+
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <span th:text="${successMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Elige tu Membresia</h2>
+                <p class="text-muted">Selecciona el plan que mejor se adapte a tus objetivos</p>
+                <div th:if="${membresia != null and membresia.getTipo() != null}" class="mt-3">
+                    <span class="badge px-3 py-2" style="font-size: 14px; background-color: ${membresia.getTipo().getColor()}">
+                        <i class="fas fa-crown me-1"></i>
+                        Plan actual: <span th:text="${membresia.getTipo().getDisplayName()}">Free</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+                <div class="col-md-4" th:each="tipo : ${tipos}">
+                    <div class="membership-card"
+                         th:classappend="${membresia != null && membresia.getTipo() == tipo} ? 'current-plan' : ''"
+                         th:style="'--plan-color:' + ${tipo.getColor()}">
+                        <div class="membership-badge" th:if="${membresia != null and membresia.getTipo() == tipo}">
+                            <i class="fas fa-check-circle"></i> Plan Actual
+                        </div>
+                        <div class="membership-icon" th:style="'background-color:' + ${tipo.getColor()} + '15; color:' + ${tipo.getColor()}">
+                            <i th:class="${tipo.name() == 'FREE'} ? 'fas fa-tag' : (${tipo.name() == 'PRO'} ? 'fas fa-crown' : 'fas fa-gem')"></i>
+                        </div>
+                        <h3 class="membership-name" th:text="${tipo.getDisplayName()}">Free</h3>
+                        <p class="membership-tagline" th:text="${tipo.getTagline()}">Tagline</p>
+                        <div class="membership-price">
+                            <span class="price-amount" th:if="${tipo.getPrice() > 0}" th:text="'$' + ${#numbers.formatDecimal(tipo.getPrice(), 1, 2)}">$0.00</span>
+                            <span class="price-amount" th:if="${tipo.getPrice() == 0}">Gratis</span>
+                            <span class="price-period" th:if="${tipo.getPrice() > 0}">/mes</span>
+                        </div>
+                        <ul class="membership-features">
+                            <li><i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> <span th:text="${tipo.getDescripcion()}">Desc</span></li>
+                            <li><i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> <span th:text="${tipo.getDiasPorSemana()} + ' dias por semana'">5 dias</span></li>
+                            <li><i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> <span th:text="${#lists.length(tipo.getCategoriasDisponibles())} + ' categorias de entrenamiento'">Cats</span></li>
+                            <li th:if="${tipo.name() == 'PRO' || tipo.name() == 'PREMIUM'}">
+                                <i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> Tracking de comidas y calorias
+                            </li>
+                            <li th:if="${tipo.name() == 'PRO' || tipo.name() == 'PREMIUM'}">
+                                <i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> Calculo de calorias quemadas
+                            </li>
+                            <li th:if="${tipo.name() == 'PREMIUM'}">
+                                <i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> Entrenador virtual 24/7
+                            </li>
+                            <li th:if="${tipo.name() == 'PREMIUM'}">
+                                <i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> Planes personalizados
+                            </li>
+                        </ul>
+                        <form th:action="@{/membresia/suscribir}" method="post">
+                            <input type="hidden" name="tipo" th:value="${tipo}">
+                            <button type="submit" class="btn membership-btn w-100"
+                                    th:classappend="${membresia != null and membresia.getTipo() == tipo} ? 'btn-outline-secondary disabled' : 'btn-primary'"
+                                    th:disabled="${membresia != null and membresia.getTipo() == tipo}"
+                                    th:style="${membresia == null or membresia.getTipo() != tipo} ? 'background-color:' + ${tipo.getColor()} + '; border-color:' + ${tipo.getColor()} : ''">
+                                <span th:if="${membresia == null or membresia.getTipo() != tipo}">
+                                    <span th:if="${tipo.getPrice() > 0}">Suscribirme - $<span th:text="${#numbers.formatDecimal(tipo.getPrice(), 1, 2)}"></span>/mes</span>
+                                    <span th:if="${tipo.getPrice() == 0}">Comenzar Gratis</span>
+                                </span>
+                                <span th:if="${membresia != null and membresia.getTipo() == tipo}">
+                                    <i class="fas fa-check me-1"></i>Tu plan actual
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-5">
+                <a th:href="@{/dashboard}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
