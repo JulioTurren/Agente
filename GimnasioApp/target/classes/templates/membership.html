@@ -34,7 +34,7 @@
             <div class="row g-4 justify-content-center">
                 <div class="col-md-4" th:each="tipo : ${tipos}">
                     <div class="membership-card"
-                         th:classappend="${membresia != null && membresia.getTipo() == tipo} ? 'current-plan' : ''"
+                         th:classappend="${membresia != null and membresia.getTipo() == tipo} ? 'current-plan' : ''"
                          th:style="'--plan-color:' + ${tipo.getColor()}">
                         <div class="membership-badge" th:if="${membresia != null and membresia.getTipo() == tipo}">
                             <i class="fas fa-check-circle"></i> Plan Actual
@@ -52,11 +52,11 @@
                         <ul class="membership-features">
                             <li><i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> <span th:text="${tipo.getDescripcion()}">Desc</span></li>
                             <li><i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> <span th:text="${tipo.getDiasPorSemana()} + ' dias por semana'">5 dias</span></li>
-                            <li><i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> <span th:text="${#lists.length(tipo.getCategoriasDisponibles())} + ' categorias de entrenamiento'">Cats</span></li>
-                            <li th:if="${tipo.name() == 'PRO' || tipo.name() == 'PREMIUM'}">
+                            <li><i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> <span th:text="${#arrays.length(tipo.getCategoriasDisponibles())} + ' categorias de entrenamiento'">Cats</span></li>
+                            <li th:if="${tipo.name() == 'PRO' or tipo.name() == 'PREMIUM'}">
                                 <i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> Tracking de comidas y calorias
                             </li>
-                            <li th:if="${tipo.name() == 'PRO' || tipo.name() == 'PREMIUM'}">
+                            <li th:if="${tipo.name() == 'PRO' or tipo.name() == 'PREMIUM'}">
                                 <i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> Calculo de calorias quemadas
                             </li>
                             <li th:if="${tipo.name() == 'PREMIUM'}">
@@ -66,21 +66,33 @@
                                 <i class="fas fa-check" th:style="'color:' + ${tipo.getColor()}"></i> Planes personalizados
                             </li>
                         </ul>
-                        <form th:action="@{/membresia/suscribir}" method="post">
+                        <!-- FREE: submit directo -->
+                        <form th:if="${tipo.name() == 'FREE'}" th:action="@{/membresia/suscribir}" method="post">
                             <input type="hidden" name="tipo" th:value="${tipo}">
                             <button type="submit" class="btn membership-btn w-100"
                                     th:classappend="${membresia != null and membresia.getTipo() == tipo} ? 'btn-outline-secondary disabled' : 'btn-primary'"
                                     th:disabled="${membresia != null and membresia.getTipo() == tipo}"
                                     th:style="${membresia == null or membresia.getTipo() != tipo} ? 'background-color:' + ${tipo.getColor()} + '; border-color:' + ${tipo.getColor()} : ''">
-                                <span th:if="${membresia == null or membresia.getTipo() != tipo}">
-                                    <span th:if="${tipo.getPrice() > 0}">Suscribirme - $<span th:text="${#numbers.formatDecimal(tipo.getPrice(), 1, 2)}"></span>/mes</span>
-                                    <span th:if="${tipo.getPrice() == 0}">Comenzar Gratis</span>
-                                </span>
+                                <span th:if="${membresia == null or membresia.getTipo() != tipo}">Comenzar Gratis</span>
                                 <span th:if="${membresia != null and membresia.getTipo() == tipo}">
                                     <i class="fas fa-check me-1"></i>Tu plan actual
                                 </span>
                             </button>
                         </form>
+                        <!-- PRO/PREMIUM: abre modal de pago -->
+                        <button th:if="${tipo.name() != 'FREE'}" type="button" class="btn membership-btn w-100"
+                                th:classappend="${membresia != null and membresia.getTipo() == tipo} ? 'btn-outline-secondary disabled' : 'btn-primary'"
+                                th:disabled="${membresia != null and membresia.getTipo() == tipo}"
+                                th:style="${membresia == null or membresia.getTipo() != tipo} ? 'background-color:' + ${tipo.getColor()} + '; border-color:' + ${tipo.getColor()} : ''"
+                                th:attr="data-plan=${tipo.name()}, data-price=${#numbers.formatDecimal(tipo.getPrice(), 1, 2)}, data-color=${tipo.getColor()}"
+                                onclick="openPaymentModal(this)">
+                            <span th:if="${membresia == null or membresia.getTipo() != tipo}">
+                                Suscribirme - $<span th:text="${#numbers.formatDecimal(tipo.getPrice(), 1, 2)}"></span>/mes
+                            </span>
+                            <span th:if="${membresia != null and membresia.getTipo() == tipo}">
+                                <i class="fas fa-check me-1"></i>Tu plan actual
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -93,6 +105,158 @@
         </div>
     </div>
 
+    <!-- ===== MODAL DE PAGO ===== -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content payment-modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="paymentModalLabel">Suscribirse</h5>
+                        <small class="text-muted" id="paymentPlanInfo"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <!-- Metodo de pago -->
+                    <div class="payment-methods mb-4">
+                        <label class="form-label fw-semibold small">Metodo de pago</label>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="payment-method-btn active" data-method="visa" onclick="selectPaymentMethod(this)">
+                                <i class="fab fa-cc-visa"></i> Visa
+                            </button>
+                            <button type="button" class="payment-method-btn" data-method="mastercard" onclick="selectPaymentMethod(this)">
+                                <i class="fab fa-cc-mastercard"></i> Mastercard
+                            </button>
+                            <button type="button" class="payment-method-btn" data-method="paypal" onclick="selectPaymentMethod(this)">
+                                <i class="fab fa-cc-paypal"></i> PayPal
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Formulario tarjeta (Visa / Mastercard) -->
+                    <form id="cardForm" th:action="@{/membresia/suscribir}" method="post">
+                        <input type="hidden" name="tipo" id="paymentTipo">
+                        <input type="hidden" name="metodoPago" id="paymentMetodo">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Nombre en la tarjeta</label>
+                            <input type="text" class="form-control payment-input" name="cardName"
+                                   placeholder="Como aparece en la tarjeta" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Numero de tarjeta</label>
+                            <div class="input-group">
+                                <span class="input-group-text payment-input-icon"><i class="far fa-credit-card"></i></span>
+                                <input type="text" class="form-control payment-input" name="cardNumber"
+                                       placeholder="0000 0000 0000 0000" required maxlength="19"
+                                       oninput="formatCardNumber(this)">
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small">Vencimiento</label>
+                                <input type="text" class="form-control payment-input" name="cardExpiry"
+                                       placeholder="MM/AA" required maxlength="5"
+                                       oninput="formatExpiry(this)">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small">CVV</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control payment-input" name="cardCvv"
+                                           placeholder="***" required maxlength="4">
+                                    <span class="input-group-text payment-input-icon"><i class="fas fa-lock"></i></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PayPal (oculto por defecto) -->
+                        <div id="paypalSection" class="d-none text-center py-4">
+                            <i class="fab fa-paypal text-primary" style="font-size:48px"></i>
+                            <p class="mt-3 text-muted">Seras redirigido a PayPal para completar el pago de forma segura.</p>
+                        </div>
+
+                        <div class="payment-summary mb-3 p-3 rounded-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Plan</span>
+                                <strong id="summaryPlan"></strong>
+                            </div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Total mensual</span>
+                                <strong class="fs-5" id="summaryPrice"></strong>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn w-100 py-3 fw-bold text-white rounded-3" id="payBtn"
+                                style="font-size: 16px;">
+                            <i class="fas fa-lock me-2"></i>Confirmar pago
+                        </button>
+                        <p class="text-center text-muted small mt-3">
+                            <i class="fas fa-shield-alt me-1"></i>Pago 100% seguro y encriptado
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openPaymentModal(btn) {
+            var plan = btn.getAttribute('data-plan');
+            var price = btn.getAttribute('data-price');
+            var color = btn.getAttribute('data-color');
+
+            document.getElementById('paymentTipo').value = plan;
+            document.getElementById('paymentPlanInfo').textContent = 'Plan ' + plan + ' - $' + price + '/mes';
+            document.getElementById('summaryPlan').textContent = plan;
+            document.getElementById('summaryPrice').textContent = '$' + price + '/mes';
+            document.getElementById('payBtn').style.backgroundColor = color;
+            document.getElementById('payBtn').style.borderColor = color;
+
+            // Reset a Visa por defecto
+            selectPaymentMethod(document.querySelector('[data-method="visa"]'));
+
+            var modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            modal.show();
+        }
+
+        function selectPaymentMethod(btn) {
+            document.querySelectorAll('.payment-method-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+
+            var method = btn.getAttribute('data-method');
+            document.getElementById('paymentMetodo').value = method;
+
+            var cardFields = document.getElementById('cardForm');
+            var paypalSection = document.getElementById('paypalSection');
+            var inputs = cardForm.querySelectorAll('input[name="cardName"], input[name="cardNumber"], input[name="cardExpiry"], input[name="cardCvv"]');
+
+            if (method === 'paypal') {
+                paypalSection.classList.remove('d-none');
+                inputs.forEach(function(i) { i.removeAttribute('required'); });
+            } else {
+                paypalSection.classList.add('d-none');
+                inputs.forEach(function(i) { i.setAttribute('required', 'required'); });
+            }
+        }
+
+        function formatCardNumber(input) {
+            var value = input.value.replace(/\D/g, '');
+            var formatted = value.match(/.{1,4}/g);
+            input.value = formatted ? formatted.join(' ') : '';
+        }
+
+        function formatExpiry(input) {
+            var value = input.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                input.value = value.substring(0, 2) + '/' + value.substring(2);
+            } else {
+                input.value = value;
+            }
+        }
+    </script>
 </body>
 </html>
